@@ -15,4 +15,6 @@ urlpatterns = [
     path("api/tools/run/", api.tool_run),
     path("api/memories/", api.memories),
     path("api/memories/<int:pk>/", api.memory_detail),
+    path("api/memories/upload/", api.memories_upload),
+    path("api/knowledge/<int:pk>/", api.document_detail),
 ]

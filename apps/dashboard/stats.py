@@ -13,6 +13,7 @@ from apps.agent.services.llm import provider_name
 from apps.agent.services.usage import runs_today, today_start
 from apps.conf import cfg
 from apps.knowledge import store
+from apps.knowledge.models import Retrieval
 from apps.workspace import sandbox
 
 DAYS = 14
@@ -61,12 +62,21 @@ def build(user) -> dict:
     ws = sandbox.usage(user)
     by_ext = Counter(f["ext"] or "outros" for f in sandbox.list_files(user))
     fb = Message.objects.filter(conversation__user=user, role="assistant")
+    last_runs = list(runs[:8])
+    # contexto da base por execução: busca automática + chamadas a rag_search
+    ctx = {}
+    for run_id, origin, hits, st, fb_ in Retrieval.objects.filter(run__in=last_runs).values_list(
+            "run_id", "origin", "hits", "store", "fallback"):
+        c = ctx.setdefault(run_id, {"hits": 0, "store": st, "fallback": False, "tool": False})
+        c["hits"] += hits
+        c["fallback"] |= fb_
+        c["tool"] |= origin == "tool"
     recent = [{"id": r.pk, "prompt": r.prompt[:70], "status": r.status, "cached": r.cached,
                "tokens": r.input_tokens + r.output_tokens, "steps": r.steps,
                "seconds": round((r.finished_at - r.started_at).total_seconds(), 1)
                if r.finished_at and r.started_at and not r.cached else 0,
-               "at": timezone.localtime(r.created_at).strftime("%d/%m %H:%M")}
-              for r in runs[:8]]
+               "at": timezone.localtime(r.created_at).strftime("%d/%m %H:%M"), "rag": ctx.get(r.pk)}
+              for r in last_runs]
 
     data = {
         "provider": provider_name(), "model": cfg("MODEL") if provider_name() == "ollama" else "demonstração",
@@ -81,6 +91,7 @@ def build(user) -> dict:
         "series": series, "tools": tools,
         "workspace": {**ws, "by_ext": [{"ext": e, "count": c} for e, c in by_ext.most_common(6)]},
         "knowledge": store.stats(user),
+        "rag": store.rag_usage(user),
         "feedback": {"up": fb.filter(feedback=1).count(), "down": fb.filter(feedback=-1).count()},
         "learning": profile.allow_learning,
         "recent": recent,

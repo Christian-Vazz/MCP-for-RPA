@@ -36,15 +36,32 @@
   /* ------------------------------------------------------------ eventos do agente */
   const argsText = a => Object.entries(a || {}).map(([k, v]) => `${k}=${String(typeof v === 'string' ? v : JSON.stringify(v)).replace(/\s+/g, ' ').slice(0, 42)}`).join(', ');
 
+  /* Chip "📚 N trechos · Pinecone": clicável, mostra de onde veio cada trecho e a nota (transparência do RAG). */
+  const STORE_NAME = { pinecone: 'Pinecone', local: 'busca local' };
+  function contextChip(p) {
+    const parts = [];
+    if (p.chunks) parts.push(`📚 ${p.chunks} trecho(s)`);
+    else if (p.store) parts.push('📚 nenhum trecho relevante');
+    if (p.store) parts.push(p.fallback ? 'busca local (Pinecone falhou)' : STORE_NAME[p.store] || p.store);
+    if (p.memories) parts.push(`🧠 ${p.memories} memória(s)`);
+    const wrap = h('div', 'ctx-wrap');
+    const chip = h('button', 'chip ctx', `${esc(parts.join(' · '))} <span aria-hidden="true">▾</span>`);
+    chip.type = 'button'; chip.setAttribute('aria-expanded', 'false'); chip.title = 'Ver o que foi recuperado da memória';
+    const det = h('div', 'ctx-detail hidden');
+    const items = (p.items || []).map(i => `<div class="it"><b>${esc(i.title || i.source)}</b> <span>· nota ${i.score}</span><br><span>${esc(i.snippet)}</span></div>`);
+    const mems = (p.memory_items || []).map(i => `<div class="it">🧠 ${esc(i.content)} <span>· nota ${i.score}</span></div>`);
+    const meta = p.store ? `<div class="it"><span>${esc(STORE_NAME[p.store] || p.store)} · embeddings ${esc(p.embedder || '')} · ${p.ms ?? 0} ms · `
+      + `${p.candidates ?? 0} candidato(s), nota mínima ${p.min_score ?? ''}${p.error ? ` · erro: ${esc(p.error)}` : ''}</span></div>` : '';
+    det.innerHTML = meta + (items.join('') + mems.join('') || '<div class="it"><span>Nada acima da nota mínima entrou no contexto.</span></div>');
+    chip.onclick = () => { const open = det.classList.toggle('hidden'); chip.setAttribute('aria-expanded', String(!open)); };
+    wrap.append(chip, det);
+    return wrap;
+  }
+
   function handleEvent(m, ev) {
     const p = ev.payload, follow = nearBottom();
     switch (ev.kind) {
-      case 'context': {
-        const parts = [];
-        if (p.chunks) parts.push(`📚 ${p.chunks} trecho(s) recuperado(s)`);
-        if (p.memories) parts.push(`🧠 ${p.memories} memória(s)`);
-        m.steps.appendChild(h('div', 'chip', esc(parts.join(' · ')))); break;
-      }
+      case 'context': m.steps.appendChild(contextChip(p)); break;
       case 'text':
         m.bubble.classList.remove('hidden'); m.live.innerHTML = '';
         m.content.appendChild(h('div', 'seg', md(p.text))); break;
@@ -217,12 +234,15 @@
       $('#dlg-download').href = `/api/files/download/?path=${encodeURIComponent(d.path)}`;
       $('#dlg-undo').classList.toggle('hidden', !d.can_undo);
       $('#dlg-use').textContent = d.editable ? 'Pedir edição ao agente' : 'Perguntar ao agente';
+      $('#dlg-remember').classList.toggle('hidden', d.kind === 'binary');
       dlg.showModal();
     } catch (e) { toast(e.message); }
   }
   $('#dlg-close').onclick = () => dlg.close();
   dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
   $('#dlg-use').onclick = () => { dlg.close(); el.prompt.value = current.editable ? `No arquivo ${current.path}, ` : `Sobre o arquivo ${current.path}: `; el.prompt.focus(); autoGrow(); };
+  $('#dlg-remember').onclick = async () => { try { const d = await api('/api/memories/', { method: 'POST', body: { type: 'file', path: current.path } });
+    toast(d.status === 'unchanged' ? 'Este arquivo já está na memória.' : `Salvo na memória (${d.chunks} trecho(s)).`); } catch (e) { toast(e.message); } };
   $('#dlg-undo').onclick = async () => { try { const d = await api('/api/files/undo/', { method: 'POST', body: { path: current.path } }); renderFiles(d); toast('Edição desfeita.'); dlg.close(); } catch (e) { toast(e.message); } };
   $('#dlg-delete').onclick = async () => { if (!confirm(`Excluir ${current.path}? (vai para a lixeira)`)) return;
     try { renderFiles(await api('/api/files/delete/', { method: 'POST', body: { path: current.path } })); dlg.close(); } catch (e) { toast(e.message); } };
@@ -251,19 +271,49 @@
       items.forEach(t => { const o = document.createElement('option'); o.value = t.name; o.textContent = t.name; og.appendChild(o); }); sel.appendChild(og); });
     sel.onchange = buildForm; buildForm();
   }
+  /* Formas de localizar elementos do navegador: UMA por vez (lista) + um único campo de valor que muda de exemplo. */
+  const BY_INFO = {
+    numero: ['Número (de browser_elements)', 'Número do elemento', 'ex.: 3'],
+    id: ['ID', 'ID do elemento', 'ex.: btnEntrar'],
+    xpath: ['XPath', 'Expressão XPath', "ex.: //button[@type='submit']"],
+    css: ['Seletor CSS', 'Seletor CSS', 'ex.: form .btn-primary'],
+    class: ['Classe', 'Classe(s) CSS', 'ex.: btn primary'],
+    name: ['Atributo name', 'Valor do atributo name', 'ex.: email'],
+    text: ['Texto visível', 'Texto que aparece no elemento', 'ex.: Entrar'],
+    link_text: ['Texto do link (exato)', 'Texto exato do link', 'ex.: Esqueci minha senha'],
+    partial_link_text: ['Texto do link (parcial)', 'Parte do texto do link', 'ex.: Esqueci'],
+    placeholder: ['Placeholder', 'Placeholder do campo', 'ex.: Digite seu e-mail'],
+    aria_label: ['aria-label', 'Valor do aria-label', 'ex.: Fechar'],
+    title: ['Título (title)', 'Valor do atributo title', 'ex.: Configurações'],
+    value: ['Atributo value', 'Valor do atributo value', 'ex.: Enviar'],
+    tag: ['Tag HTML', 'Nome da tag', 'ex.: button'],
+    auto: ['Automático', 'Seletor (xpath, css, id, name ou texto)', 'ex.: #login ou //a[1]'],
+  };
   function buildForm() {
     const t = tools.find(x => x.name === $('#tool-select').value); if (!t) return;
     $('#tool-desc').innerHTML = esc(t.description) + (t.risk !== 'low' ? `<span class="risk-tag ${t.risk}">risco ${t.risk === 'high' ? 'alto' : 'médio'}</span>` : '');
     const form = $('#tool-form'); form.innerHTML = '';
+    const locator = t.schema.properties.by && t.schema.properties.selector;
     Object.entries(t.schema.properties).forEach(([key, spec]) => {
       const req = t.schema.required.includes(key), id = `tf-${key}`;
-      const row = h('div', 'form-row'); const label = h('label', '', `${esc(key)}${req ? ' *' : ''} <span class="muted">— ${esc(spec.description)}</span>`); label.htmlFor = id;
+      const desc = locator && key === 'by' ? 'escolha uma forma de localizar' : spec.description;
+      const row = h('div', 'form-row'); const label = h('label', '', `${esc(key)}${req ? ' *' : ''} <span class="muted">— ${esc(desc)}</span>`); label.htmlFor = id;
       let input;
-      if (spec.type === 'boolean') { input = h('input'); input.type = 'checkbox'; }
+      if (spec.enum) {
+        input = h('select'); input.className = 'sel';
+        if (!req) input.appendChild(new Option('(padrão)', ''));
+        spec.enum.forEach(v => input.appendChild(new Option(locator && key === 'by' ? (BY_INFO[v] || [v])[0] : v, v)));
+      } else if (spec.type === 'boolean') { input = h('input'); input.type = 'checkbox'; }
       else if (spec.type === 'string' && ['content', 'old_text', 'new_text', 'text'].includes(key)) input = h('textarea');
       else { input = h('input'); input.type = spec.type === 'integer' ? 'number' : 'text'; }
       input.id = id; input.dataset.key = key; input.dataset.type = spec.type; row.append(label, input); form.appendChild(row);
     });
+    if (locator) {  // o rótulo e o exemplo do valor acompanham a forma escolhida
+      const by = $('#tf-by'), sel = $('#tf-selector'), lab = $('label[for="tf-selector"]');
+      const sync = () => { const [, name, ph] = BY_INFO[by.value] || ['', 'Valor', '']; sel.placeholder = ph;
+        lab.innerHTML = `selector * <span class="muted">— ${esc(name)}</span>`; };
+      by.onchange = () => { sel.value = ''; sync(); }; sync();
+    }
     $('#tool-out').classList.add('hidden');
   }
   $('#tool-run').onclick = async () => {
@@ -280,15 +330,45 @@
   };
 
   /* ------------------------------------------------------------ memória */
-  async function loadMemories() {
-    const d = await api('/api/memories/'), box = $('#mem-list'); box.innerHTML = '';
-    if (!d.memories.length) { box.innerHTML = '<div class="empty">Nada por aqui ainda. Diga ao agente “lembre que…” ou adicione acima.</div>'; return; }
+  const DOC_KIND = { file: 'arquivo', web: 'link', text: 'texto' };
+  function renderMemories(d) {
+    const box = $('#mem-list'), docs = $('#doc-list'); box.innerHTML = ''; docs.innerHTML = '';
+    if (!d.memories.length) box.innerHTML = '<div class="empty">Nenhum fato ainda. Diga ao agente “lembre que…” ou adicione acima.</div>';
     d.memories.forEach(m => { const r = h('div', 'mem', `<span class="k">${esc(m.kind)}</span><span class="c">${esc(m.content)}</span><button type="button" aria-label="Esquecer" title="Esquecer">×</button>`);
       $('button', r).onclick = async () => { await api(`/api/memories/${m.id}/`, { method: 'DELETE' }); loadMemories(); }; box.appendChild(r); });
+    if (!d.documents.length) docs.innerHTML = '<div class="empty">Nenhum documento. Salve um texto, arquivo ou link acima.</div>';
+    d.documents.forEach(doc => { const r = h('div', 'mem', `<span class="k">${DOC_KIND[doc.type] || doc.type}</span><span class="c">${esc(doc.title || doc.source)}<small class="muted"> · ${doc.chunks} trecho(s)</small></span><button type="button" aria-label="Esquecer documento" title="Esquecer">×</button>`);
+      $('button', r).onclick = async () => { await api(`/api/knowledge/${doc.id}/`, { method: 'DELETE' }); loadMemories(); }; docs.appendChild(r); });
   }
-  $('#mem-add').onclick = async () => { const i = $('#mem-input'); if (!i.value.trim()) return;
-    try { await api('/api/memories/', { method: 'POST', body: { content: i.value } }); i.value = ''; loadMemories(); } catch (e) { toast(e.message); } };
+  async function loadMemories() { try { renderMemories(await api('/api/memories/')); } catch (e) { toast(e.message); } }
+  async function addMemory(body, done) {
+    try { const d = await api('/api/memories/', { method: 'POST', body }); if (done) done();
+      if (d.status === 'unchanged') toast('Isso já está na memória.'); else if (d.chunks !== undefined) toast(`Salvo na memória (${d.chunks} trecho(s)).`);
+      loadMemories(); } catch (e) { toast(e.message); }
+  }
+  $$('#mem-type button').forEach(b => b.onclick = () => {
+    $$('#mem-type button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    $$('[data-mem]').forEach(p => p.classList.toggle('hidden', p.dataset.mem !== b.dataset.type));
+  });
+  $('#mem-add').onclick = () => { const i = $('#mem-input'); if (i.value.trim()) addMemory({ type: 'fact', content: i.value }, () => { i.value = ''; }); };
   $('#mem-input').addEventListener('keydown', e => { if (e.key === 'Enter') $('#mem-add').click(); });
+  $('#mem-text-add').onclick = () => { const t = $('#mem-title'), x = $('#mem-text'); if (!x.value.trim()) return toast('Escreva o texto a memorizar.');
+    addMemory({ type: 'text', title: t.value, content: x.value }, () => { t.value = ''; x.value = ''; }); };
+  $('#mem-url-add').onclick = () => { const u = $('#mem-url'); if (u.value.trim()) addMemory({ type: 'url', url: u.value.trim() }, () => { u.value = ''; }); };
+  $('#mem-url').addEventListener('keydown', e => { if (e.key === 'Enter') $('#mem-url-add').click(); });
+  async function memUpload(files) {
+    if (!files.length) return;
+    const form = new FormData(); [...files].forEach(f => form.append('files', f));
+    try { const d = await api('/api/memories/upload/', { method: 'POST', form }); renderMemories(d); scheduleFiles(0);
+      if (d.errors.length) toast(d.errors.map(x => `${x.name}: ${x.error}`).join(' · ')); else toast(`${d.saved.length} arquivo(s) salvo(s) na memória.`); }
+    catch (e) { toast(e.message); }
+  }
+  const mdz = $('#mem-drop');
+  $('#mem-upload-btn').onclick = () => $('#mem-upload-input').click();
+  $('#mem-upload-input').onchange = e => { memUpload(e.target.files); e.target.value = ''; };
+  ['dragenter', 'dragover'].forEach(t => mdz.addEventListener(t, e => { e.preventDefault(); mdz.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => mdz.addEventListener(t, e => { e.preventDefault(); mdz.classList.remove('over'); }));
+  mdz.addEventListener('drop', e => memUpload(e.dataTransfer.files));
 
   /* ------------------------------------------------------------ abas e UI */
   $$('.tab').forEach(tab => tab.onclick = () => {

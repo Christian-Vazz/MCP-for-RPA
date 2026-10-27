@@ -53,7 +53,7 @@
       <div id="file-list" style="margin-top:12px"></div>
       <div class="quota"><div class="bar" id="quota-bar"><i style="width:0"></i></div><small id="quota-text"></small></div>
       <div class="resources"><h4>RECURSOS</h4><ul>
-        <li>Leitura e escrita</li><li>Consulta web HTTPS</li><li>Navegador (Selenium)</li><li>Memória e base de conhecimento</li><li>Cache inteligente</li></ul></div>
+        <li>Leitura e escrita</li><li>Planilhas (pandas)</li><li>Consulta web HTTPS</li><li>Navegador (Selenium)</li><li>Memória e base de conhecimento</li><li>Cache inteligente</li></ul></div>
     </div>
 
     <div class="pane hidden" id="pane-tools">
@@ -66,10 +66,24 @@
     </div>
 
     <div class="pane hidden" id="pane-memory">
-      <p class="muted" style="margin:0 0 12px;font-size:12.5px">O que o agente lembra sobre você entre conversas.</p>
-      <div class="inline"><div class="form-row" style="flex:1;margin:0"><input type="text" id="mem-input" maxlength="500" placeholder="Adicionar uma memória…" aria-label="Nova memória"></div>
-        <button class="btn solid" id="mem-add" type="button">Salvar</button></div>
-      <div id="mem-list" style="margin-top:10px"></div>
+      <p class="muted" style="margin:0 0 12px;font-size:12.5px">O que o agente lembra entre conversas: fatos curtos e documentos (textos, arquivos e links) que ele consulta quando forem relevantes.</p>
+      <div class="seg-toggle" id="mem-type" role="group" aria-label="Tipo de memória" style="margin-bottom:10px">
+        <button type="button" data-type="fact" aria-pressed="true">Fato</button><button type="button" data-type="text" aria-pressed="false">Texto</button><button type="button" data-type="file" aria-pressed="false">Arquivo</button><button type="button" data-type="url" aria-pressed="false">Link</button></div>
+      <div data-mem="fact"><div class="inline"><div class="form-row" style="flex:1;margin:0"><input type="text" id="mem-input" maxlength="500" placeholder="Ex.: prefiro relatórios em tópicos" aria-label="Nova memória"></div>
+        <button class="btn solid" id="mem-add" type="button">Salvar</button></div></div>
+      <div data-mem="text" class="hidden">
+        <div class="form-row"><input type="text" id="mem-title" maxlength="200" placeholder="Título (ex.: Procedimento de fechamento)" aria-label="Título do texto"></div>
+        <div class="form-row"><textarea id="mem-text" maxlength="200000" placeholder="Cole aqui o texto a memorizar…" aria-label="Texto a memorizar"></textarea></div>
+        <button class="btn solid" id="mem-text-add" type="button">Salvar texto</button></div>
+      <div data-mem="file" class="hidden">
+        <div class="dropzone" id="mem-drop"><div>Arraste arquivos aqui (txt, md, csv, pdf, docx, xlsx…).<br>Eles ficam em <b>memoria/</b> no workspace.</div>
+          <button class="btn" id="mem-upload-btn" type="button" style="margin-top:10px">Escolher arquivos</button>
+          <input type="file" id="mem-upload-input" multiple class="sr" aria-label="Enviar arquivos para a memória"></div>
+        <p class="muted" style="font-size:12px;margin:8px 0 0">Para memorizar um arquivo que já está no workspace, abra-o na aba Arquivos e use “Salvar na memória”.</p></div>
+      <div data-mem="url" class="hidden"><div class="inline"><div class="form-row" style="flex:1;margin:0"><input type="text" id="mem-url" placeholder="https://…" aria-label="Link a memorizar"></div>
+        <button class="btn solid" id="mem-url-add" type="button">Salvar</button></div></div>
+      <h4 class="mem-h">Fatos</h4><div id="mem-list"></div>
+      <h4 class="mem-h">Documentos</h4><div id="doc-list"></div>
     </div>
   </aside>
 </div>
@@ -80,6 +94,7 @@
   <div class="dlg-foot">
     <a class="btn" id="dlg-download" href="#">Baixar</a>
     <button class="btn" id="dlg-use" type="button">Pedir ao agente</button>
+    <button class="btn" id="dlg-remember" type="button">Salvar na memória</button>
     <button class="btn" id="dlg-undo" type="button">Desfazer última edição</button>
     <button class="btn" id="dlg-delete" type="button" style="margin-left:auto;color:var(--bad)">Excluir</button>
   </div>

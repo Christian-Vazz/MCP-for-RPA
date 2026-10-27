@@ -18,7 +18,8 @@ from apps.workspace import sandbox
 
 User = get_user_model()
 ORBIT = {**settings.ORBIT, "LLM_PROVIDER": "auto", "OLLAMA_API_KEY": "ok-test", "OLLAMA_BASE_URL": "",
-         "MODEL": "gpt-oss:120b", "OLLAMA_THINK": "medium", "SYNC_RUNS": True}
+         "MODEL": "gpt-oss:120b", "OLLAMA_THINK": "medium", "SYNC_RUNS": True,
+         "VECTOR_STORE": "local", "EMBEDDING_BACKEND": "hash"}
 
 
 def ndjson(*chunks):

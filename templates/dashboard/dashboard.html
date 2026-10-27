@@ -13,50 +13,63 @@
     </div>
   </header>
 
-  <section class="grid g3" aria-label="Resumo de hoje">
-    <div class="panel-card kpi"><small>Solicitações hoje</small><strong id="k-req">–</strong></div>
-    <div class="panel-card kpi"><small>Tokens estimados</small><strong id="k-tok">–</strong><em id="k-tok-sub"></em></div>
-    <div class="panel-card kpi"><small>Ações executadas</small><strong id="k-act">–</strong><em id="k-act-sub"></em></div>
+  <section class="kpis" aria-label="Resumo">
+    <div class="panel-card kpi"><small>Solicitações hoje</small><strong id="k-req">–</strong>
+      <div class="bar" id="limit-bar" style="margin-top:10px"><i style="width:0"></i></div><em id="limit-pct" title="O limite reinicia à meia-noite. Respostas em cache contam como solicitação, mas não consomem tokens."></em></div>
+    <div class="panel-card kpi"><small>Tokens estimados hoje</small><strong id="k-tok">–</strong><em id="k-tok-sub"></em></div>
+    <div class="panel-card kpi"><small>Ações executadas hoje</small><strong id="k-act">–</strong><em id="k-act-sub"></em></div>
+    <div class="panel-card kpi"><small>Respostas do cache</small><strong id="k-cache">–</strong><em id="k-saved"></em></div>
+    <div class="panel-card kpi"><small>Tempo médio de resposta</small><strong id="k-lat">–</strong><em>execuções com o modelo</em></div>
+    <div class="panel-card kpi"><small>Taxa de erro</small><strong id="k-err">–</strong><em id="k-fb"></em></div>
   </section>
 
-  <section class="panel-card" style="margin-bottom:16px">
-    <div class="row-between"><b style="font-size:14px">Limite diário</b><span class="muted" id="limit-pct"></span></div>
-    <div class="bar" id="limit-bar" style="margin:14px 0 12px"><i style="width:0"></i></div>
-    <p class="muted" style="margin:0;font-size:12px">O limite é reiniciado diariamente à meia-noite. Respostas em cache contam como solicitação, mas não consomem tokens do modelo.</p>
-  </section>
-
-  <section class="grid g4" aria-label="Desempenho">
-    <div class="panel-card kpi sm"><small>Respostas vindas do cache</small><strong id="k-cache">–</strong><em>do total de solicitações</em></div>
-    <div class="panel-card kpi sm"><small>Tokens economizados</small><strong id="k-saved">–</strong><em>cache de resposta + prompt caching</em></div>
-    <div class="panel-card kpi sm"><small>Tempo médio de resposta</small><strong id="k-lat">–</strong><em>execuções com o modelo</em></div>
-    <div class="panel-card kpi sm"><small>Taxa de erro</small><strong id="k-err">–</strong><em id="k-fb"></em></div>
-  </section>
-
-  <section class="panel-card" style="margin-bottom:16px">
-    <div class="row-between"><div><h3>Atividade dos últimos 14 dias</h3><p class="hint" id="chart-hint"></p></div>
+  <section class="dgrid">
+    <div class="panel-card s8"><div class="row-between"><div><h3>Atividade dos últimos 14 dias</h3><p class="hint" id="chart-hint"></p></div>
       <div class="seg-toggle" role="group" aria-label="Métrica do gráfico"><button type="button" data-metric="runs" aria-pressed="true">Solicitações</button><button type="button" data-metric="tokens" aria-pressed="false">Tokens</button></div></div>
-    <div class="chart" id="chart" role="img" aria-label="Gráfico de barras de atividade diária"></div>
+      <div class="chart" id="chart" role="img" aria-label="Gráfico de barras de atividade diária"></div></div>
+    <div class="panel-card s4"><h3>Ferramentas mais usadas</h3><p class="hint">Pelo agente e pelo uso direto. Falhas em vermelho.</p><div class="rank" id="tools"></div></div>
   </section>
 
-  <section class="grid g2">
-    <div class="panel-card"><h3>Ferramentas mais usadas</h3><p class="hint">Pelo agente e pelo uso direto. Falhas em vermelho.</p><div class="rank" id="tools"></div></div>
-    <div class="panel-card"><h3>Workspace</h3><p class="hint">Arquivos e armazenamento do seu ambiente.</p>
-      <div class="bar" id="ws-bar"><i style="width:0"></i></div>
-      <dl class="stat-list"><dt>Arquivos</dt><dd id="ws-files">–</dd><dt>Armazenamento</dt><dd id="ws-bytes">–</dd><dt>Tipos mais comuns</dt><dd id="ws-ext">–</dd></dl></div>
+  <section class="dgrid" aria-label="Uso da base vetorial">
+    <div class="panel-card s8">
+      <div class="row-between"><div><h3>O agente está usando a base vetorial?</h3><p class="hint">Cada busca no RAG fica registrada: motor que respondeu, notas e fontes. Últimos 14 dias.</p></div>
+        <span class="pill" id="rag-engine">–</span></div>
+      <div class="mini-kpis">
+        <div><small>Solicitações com contexto da base</small><strong id="rag-rate">–</strong><em id="rag-rate-sub"></em></div>
+        <div><small>Buscas vetoriais</small><strong id="rag-searches">–</strong><em id="rag-searches-sub"></em></div>
+        <div><small>Por motor</small><strong id="rag-stores">–</strong><em id="rag-fallbacks"></em></div>
+        <div><small>Latência média</small><strong id="rag-ms">–</strong><em id="rag-score"></em></div>
+      </div>
+      <div class="scroll-x"><table class="t"><thead><tr><th>Quando</th><th>Origem</th><th>Motor</th><th>Consulta</th><th>Trechos</th><th>Melhor nota</th><th>Fontes</th><th>Tempo</th></tr></thead><tbody id="rag-recent"></tbody></table></div>
+      <div class="empty hidden" id="rag-empty">Nenhuma busca ainda. Salve algo na aba Memória do agente e faça uma pergunta sobre o assunto.</div>
+    </div>
+    <div class="panel-card s4">
+      <h3>Verificar a base vetorial</h3><p class="hint">Confere a conexão e testa o que o agente recuperaria, sem gastar tokens.</p>
+      <div class="health" id="rag-health"><span class="dot"></span><span id="rag-health-text">Verificando…</span></div>
+      <dl class="stat-list" id="rag-health-list"></dl>
+      <button class="btn" id="rag-health-btn" type="button" style="margin:10px 0 16px">Verificar de novo</button>
+      <div class="inline"><div class="form-row" style="flex:1;margin:0"><input type="text" id="rag-q" maxlength="300" placeholder="Pergunte algo que está na memória…" aria-label="Pergunta de teste"></div>
+        <button class="btn solid" id="rag-test" type="button">Testar</button></div>
+      <p class="hint" id="rag-test-meta" style="margin:10px 0 6px"></p>
+      <div id="rag-results"></div>
+    </div>
   </section>
 
-  <section class="grid g2">
-    <div class="panel-card"><h3>Armazenamento vetorial</h3><p class="hint">Base de conhecimento (RAG) e memória do agente.</p>
+  <section class="dgrid">
+    <div class="panel-card s4"><h3>Armazenamento vetorial</h3><p class="hint">Base de conhecimento (RAG) e memória do agente.</p>
       <dl class="stat-list"><dt>Fontes indexadas</dt><dd id="kb-docs">–</dd><dt>Trechos (vetores)</dt><dd id="kb-chunks">–</dd><dt>Memórias</dt><dd id="kb-mem">–</dd>
         <dt>Dimensão / motor</dt><dd id="kb-dim">–</dd><dt>Tamanho dos vetores</dt><dd id="kb-bytes">–</dd><dt>Por origem</dt><dd id="kb-types">–</dd></dl></div>
-    <div class="panel-card"><h3>Privacidade e aprendizado</h3>
+    <div class="panel-card s4"><h3>Workspace</h3><p class="hint">Arquivos e armazenamento do seu ambiente.</p>
+      <div class="bar" id="ws-bar"><i style="width:0"></i></div>
+      <dl class="stat-list"><dt>Arquivos</dt><dd id="ws-files">–</dd><dt>Armazenamento</dt><dd id="ws-bytes">–</dd><dt>Tipos mais comuns</dt><dd id="ws-ext">–</dd></dl></div>
+    <div class="panel-card s4"><h3>Privacidade e aprendizado</h3>
       <p class="muted" id="learn-text" style="margin:8px 0 14px;font-size:13.5px"></p>
       <label class="switch-row" style="padding:0"><input type="checkbox" id="learn-toggle"><span>Permitir que o agente aprenda com os sites e arquivos que eu uso, e guarde amostras das solicitações.</span></label>
       <p class="hint" style="margin:12px 0 0">Seus dados ficam só na sua base. Amostras só entram em treinamento se você autorizar e avaliar a resposta com 👍.</p></div>
   </section>
 
   <section class="panel-card"><h3>Solicitações recentes</h3><p class="hint">As 8 últimas.</p>
-    <div class="scroll-x"><table class="t"><thead><tr><th>Quando</th><th>Pedido</th><th>Estado</th><th>Tokens</th><th>Passos</th><th>Tempo</th></tr></thead><tbody id="recent"></tbody></table></div>
+    <div class="scroll-x"><table class="t"><thead><tr><th>Quando</th><th>Pedido</th><th>Estado</th><th>Contexto da base</th><th>Tokens</th><th>Passos</th><th>Tempo</th></tr></thead><tbody id="recent"></tbody></table></div>
     <div class="empty hidden" id="recent-empty">Nenhuma solicitação ainda. Volte ao agente e faça um pedido.</div></section>
 </main>
 {% endblock %}

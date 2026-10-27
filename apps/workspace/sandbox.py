@@ -25,6 +25,7 @@ from .models import FileEvent
 RESERVED = {".versions", ".trash"}
 TEXT_EXT = {".txt", ".md", ".csv", ".tsv", ".json", ".py", ".html", ".css", ".js", ".xml", ".yaml", ".yml",
             ".log", ".ini", ".sql", ".toml", ".rst"}
+SHEET_BIN_EXT = {".xlsx"}  # binários editáveis (só pelas ferramentas de planilha, que geram o arquivo inteiro)
 READ_EXT = TEXT_EXT | {".pdf", ".docx", ".xlsx"}
 UPLOAD_EXT = READ_EXT | {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 MAX_READ_CHARS = 300_000
@@ -241,14 +242,37 @@ def read_any(user, rel: str) -> str:
     return extract_text(path)
 
 
+def read_bytes(user, rel: str) -> bytes:
+    """Bytes brutos de um arquivo legível (ex.: para o pandas abrir uma planilha)."""
+    path = resolve(user, rel, must_exist=True)
+    if not path.is_file():
+        raise ToolError(f"'{rel}' não é um arquivo.")
+    if _ext(rel) not in READ_EXT:
+        raise ToolError(f"Formato '{_ext(rel)}' não suportado.")
+    if path.stat().st_size > 25 * 1024 * 1024:
+        raise ToolError("Arquivo grande demais para leitura.")
+    return path.read_bytes()
+
+
 # ----------------------------- escrita -----------------------------
 def write_text(user, rel: str, content: str, action: str = "write") -> dict:
     rel = clean_rel(rel)
-    if not rel:
-        raise ToolError("Informe o caminho do arquivo.")
     if _ext(rel) not in TEXT_EXT:
         raise ToolError(f"Edição permitida só para texto ({', '.join(sorted(TEXT_EXT))}).")
-    data = content.encode("utf-8")
+    return _write(user, rel, content.encode("utf-8"), action)
+
+
+def write_sheet_bytes(user, rel: str, data: bytes, action: str = "edit") -> dict:
+    """Grava uma planilha binária (.xlsx) com as MESMAS garantias da escrita de texto."""
+    rel = clean_rel(rel)
+    if _ext(rel) not in SHEET_BIN_EXT:
+        raise ToolError("Escrita binária permitida só para planilhas .xlsx.")
+    return _write(user, rel, data, action)
+
+
+def _write(user, rel: str, data: bytes, action: str) -> dict:
+    if not rel:
+        raise ToolError("Informe o caminho do arquivo.")
     if len(data) > cfg("MAX_EDITABLE_KB") * 1024:
         raise ToolError(f"Conteúdo maior que {cfg('MAX_EDITABLE_KB')} KB.")
     path = resolve(user, rel)
@@ -310,12 +334,18 @@ def safe_name(name: str) -> str:
     return name[:120] or "arquivo"
 
 
-def save_upload(user, uploaded) -> dict:
+def extension(rel: str) -> str:
+    return _ext(rel)
+
+
+def save_upload(user, uploaded, folder: str = "") -> dict:
     name = safe_name(uploaded.name)
     if _ext(name) not in UPLOAD_EXT:
         raise ToolError(f"Extensão '{_ext(name) or '(nenhuma)'}' não permitida.")
     if uploaded.size > cfg("MAX_UPLOAD_MB") * 1024 * 1024:
         raise ToolError(f"Arquivo maior que {cfg('MAX_UPLOAD_MB')} MB.")
+    if folder:
+        name = f"{clean_rel(folder)}/{name}"
     stem, ext = os.path.splitext(name)
     candidate, n = name, 1
     while resolve(user, candidate).exists():

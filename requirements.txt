@@ -6,7 +6,9 @@ selenium>=4.20          # ferramentas de navegador
 mcp>=2.0,<3.0          # servidor MCP (mcp_server.py) — API 2.x
 pypdf>=4.0              # leitura de PDF
 python-docx>=1.1        # leitura de DOCX
-openpyxl>=3.1           # leitura de XLSX
+openpyxl>=3.1           # leitura/escrita de XLSX
+pandas>=2.2             # ferramentas de planilha (sheet_*)
+pinecone>=7.0           # RAG/busca vetorial no Pinecone (VECTOR_STORE=pinecone) e embeddings semânticos
 # --- opcionais ---------------------------------------------------------
 # botcity-framework-core   # controle de desktop (ENABLE_DESKTOP=1; requer interface gráfica)
 # sentence-transformers    # embeddings semânticos (EMBEDDING_BACKEND=st)

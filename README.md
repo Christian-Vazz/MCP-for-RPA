@@ -2,8 +2,6 @@
 
 Agente de workspace com interface web: o modelo decide, usa ferramentas (arquivos, web, navegador, memória, RAG, desktop) e responde — com aprovação humana para ações de risco, cache, memória e dashboard.
 
-> Leia o **[CLAUDE.md](CLAUDE.md)** para o comportamento do agente, a arquitetura e as regras do projeto.
-
 ## Início rápido
 
 ```bash
@@ -15,6 +13,8 @@ python manage.py runserver      # abra http://127.0.0.1:8000 e crie sua conta
 ```
 
 **Sem Ollama configurado** o sistema roda em **modo demonstração** (LLM simulado, mas com ferramentas, cache, memória e aprovações reais). Experimente: `liste meus arquivos` · `leia notas.txt` · `apague notas.txt` (pede aprovação) · `lembre que prefiro respostas curtas`.
+
+**RAG com Pinecone (opcional):** coloque `PINECONE_API_KEY` no `.env`. Os trechos da memória passam a ir para um índice serverless (`PINECONE_INDEX`, criado sozinho) e os embeddings ficam semânticos (`multilingual-e5-large`). Se já havia conteúdo indexado, rode `python manage.py reindex_knowledge`.
 
 ## Recursos
 
@@ -50,9 +50,9 @@ python manage.py test apps
 
 ## Estado da verificação
 
-Verificado automaticamente neste ambiente: toda a suíte (33 testes), o fluxo completo no navegador (login, chat em tempo real, cache, aprovação, abas, upload, temas claro/escuro, dashboard, mobile), o cliente MCP real via stdio e o caminho da API do Ollama com um stream NDJSON simulado e uma execução real com `gpt-oss:120b` no Ollama Cloud (ler → acrescentar linha → conferir).
+Verificado automaticamente neste ambiente: toda a suíte (72 testes), o fluxo completo no navegador (login, chat em tempo real, cache, aprovação, abas, upload, temas claro/escuro, dashboard, mobile), o cliente MCP real via stdio e o caminho da API do Ollama com um stream NDJSON simulado e uma execução real com `gpt-oss:120b` no Ollama Cloud (ler → acrescentar linha → conferir).
 
-**Não foi possível verificar aqui** (exige o seu ambiente): Selenium com Chrome/ChromeDriver real (o JavaScript de listagem de elementos foi validado em página real, mas o *driver* não), BotCity (precisa de interface gráfica) e `sentence-transformers`. Teste esses três com calma antes da apresentação.
+**Não foi possível verificar aqui** (exige o seu ambiente): Selenium em sites reais (o resolvedor de seletores — id, xpath, css, class, texto, select — foi validado num Chrome real com página local), BotCity (precisa de interface gráfica), `sentence-transformers` e o **Pinecone real** (testado só com cliente simulado; falta uma chave). Teste esses quatro com calma antes da apresentação.
 
 ## Produção (se for além da demonstração)
 

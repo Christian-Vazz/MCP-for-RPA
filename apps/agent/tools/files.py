@@ -30,20 +30,25 @@ def list_files(ctx, path: str = ""):
     "offset": ("integer", "Caractere inicial (para ler arquivos longos em partes)"),
     "max_chars": ("integer", "Máximo de caracteres a retornar (padrão 6000)")})
 def read_file(ctx, path: str, offset: int = 0, max_chars: int = 6000):
-    """Lê o conteúdo de um arquivo do workspace. Suporta txt/md/csv/json/código, PDF, DOCX e XLSX."""
+    """Lê o conteúdo de um arquivo do workspace. Suporta txt/md/json/código, PDF e DOCX.
+    Para planilhas (.csv, .tsv, .xlsx) prefira sheet_info/sheet_query."""
     text = sandbox.read_any(ctx.user, path)
     store.maybe_learn(ctx.user, "file", sandbox.clean_rel(path), path, text)
     max_chars = max(200, min(int(max_chars), 20000))
     chunk = text[offset: offset + max_chars]
-    return {"path": path, "total_chars": len(text), "offset": offset, "content": chunk,
-            "has_more": offset + max_chars < len(text)}
+    out = {"path": path, "total_chars": len(text), "offset": offset, "content": chunk,
+           "has_more": offset + max_chars < len(text)}
+    if sandbox.extension(path) in (".csv", ".tsv", ".xlsx"):  # modelos tendem a editar CSV "na mão" e quebrar o formato
+        out["note"] = "É uma planilha: para calcular, filtrar ou editar use sheet_info, sheet_query e sheet_update."
+    return out
 
 
 @tool(category="files", required=["path", "content"], params={
     "path": ("string", "Caminho do arquivo de texto a criar/sobrescrever"),
     "content": ("string", "Conteúdo completo do arquivo")})
 def write_file(ctx, path: str, content: str):
-    """Cria um arquivo de texto novo ou sobrescreve um existente (a versão anterior fica disponível para desfazer)."""
+    """Cria um arquivo de texto novo ou sobrescreve um existente (a versão anterior fica disponível para desfazer).
+    Não use para planilhas (.csv/.tsv/.xlsx): use sheet_create, sheet_update ou sheet_save_as."""
     _count_write(ctx)
     out = sandbox.write_text(ctx.user, path, content, "write")
     ctx.changed = True

@@ -157,7 +157,15 @@ ORBIT = {
     "BROWSER_IDLE_SECONDS": 600,
     "ENABLE_DESKTOP": env("ENABLE_DESKTOP", False, bool),
     # ---- Conhecimento (RAG + memória) ----
-    "EMBEDDING_BACKEND": env("EMBEDDING_BACKEND", "hash"),  # hash | st
+    # auto = pinecone se houver PINECONE_API_KEY, senão hash. Trocar o motor exige `reindex_knowledge`.
+    "EMBEDDING_BACKEND": env("EMBEDDING_BACKEND", "auto"),  # auto | hash | st | pinecone
+    "VECTOR_STORE": env("VECTOR_STORE", "auto"),            # auto | local | pinecone
+    "PINECONE_API_KEY": env("PINECONE_API_KEY", ""),
+    "PINECONE_INDEX": env("PINECONE_INDEX", "orbit-agent"),  # criado sozinho (serverless, cosseno) se não existir
+    "PINECONE_CLOUD": env("PINECONE_CLOUD", "aws"),
+    "PINECONE_REGION": env("PINECONE_REGION", "us-east-1"),
+    "PINECONE_NAMESPACE_PREFIX": env("PINECONE_NAMESPACE_PREFIX", ""),  # ex.: "dev-" para dividir um índice
+    "PINECONE_EMBED_MODEL": env("PINECONE_EMBED_MODEL", "multilingual-e5-large"),
     "EMBEDDING_MODEL": env("EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2"),
     "EMBEDDING_DIM": 512,
     "RAG_MIN_SCORE": 0.22,

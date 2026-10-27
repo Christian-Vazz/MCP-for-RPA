@@ -82,6 +82,10 @@ class Tool:
                     val = str(val)
             except (TypeError, ValueError):
                 raise ToolError(f"Parâmetro '{key}' deve ser {typ}.")
+            if "enum" in spec:
+                val = str(val).strip().lower()
+                if val not in spec["enum"]:
+                    raise ToolError(f"Parâmetro '{key}' deve ser um de: {', '.join(spec['enum'])}.")
             out[key] = val
         missing = [r for r in self.required if r not in out]
         if missing:
@@ -90,7 +94,8 @@ class Tool:
 
 
 def tool(*, category, params, required=(), risk="low", read_only=False, untrusted=False, enabled=None, name=None):
-    """params: {"nome": ("string"|"integer"|"boolean"|"array", "descrição")}"""
+    """params: {"nome": ("string"|"integer"|"boolean"|"array", "descrição"[, ("opção1", "opção2", ...)])}
+    O 3º item opcional vira `enum` no JSON Schema: o modelo escolhe UMA opção e a UI mostra uma lista."""
     assert risk in RISKS
 
     def decorator(fn):
@@ -98,6 +103,8 @@ def tool(*, category, params, required=(), risk="low", read_only=False, untruste
         for key, spec in params.items():
             typ, desc = spec[0], spec[1]
             props[key] = {"type": typ, "description": desc}
+            if len(spec) > 2:
+                props[key]["enum"] = list(spec[2])
             if typ == "array":
                 props[key]["items"] = {"type": "string"}
         t = Tool(name=name or fn.__name__, description=" ".join((fn.__doc__ or "").split()),

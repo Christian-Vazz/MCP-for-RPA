@@ -13,9 +13,11 @@ from apps.agent.services import response_cache, runner
 from apps.agent.services.usage import runs_today
 from apps.agent.tools import REGISTRY, ToolContext, available_tools, execute
 from apps.conf import cfg
+from apps.errors import UserFacingError
 from apps.http import api_login_required, error, json_body, rate_limited
 from apps.knowledge import store
 from apps.knowledge.models import Memory
+from apps.workspace import sandbox
 
 STALE_AFTER = timedelta(seconds=180)
 
@@ -186,24 +188,67 @@ def tool_run(request):
 
 
 # ------------------------------------------------------------------ memórias
+def _add_memory(user, body: dict) -> dict:
+    """type: fact (frase curta) | text (texto longo) | url (página pública) | file (arquivo do workspace)."""
+    kind = body.get("type") or "fact"
+    if kind == "fact":
+        return store.save_memory(user, body.get("content", ""), body.get("kind", "note"), body.get("importance", 3))
+    if kind == "text":
+        return store.add_text(user, body.get("title", ""), body.get("content", ""))
+    if kind in ("url", "file"):  # mesmas regras do agente (anti-SSRF, sandbox): reaproveita as ferramentas
+        name, args = ("memory_add_url", {"url": body.get("url", "")}) if kind == "url" \
+            else ("rag_ingest_file", {"path": body.get("path", "")})
+        res = execute(name, args, ToolContext(user=user, source="direct"))
+        if not res.ok:
+            raise UserFacingError(res.data.get("error", "Falha ao salvar."))
+        return res.data
+    raise UserFacingError("Tipo de memória inválido.")
+
+
+def _knowledge_snapshot(user) -> dict:
+    items = Memory.objects.filter(user=user)[:100]
+    return {"memories": [{"id": m.pk, "kind": m.kind, "content": m.content, "importance": m.importance,
+                          "uses": m.uses} for m in items],
+            "documents": store.list_documents(user)}
+
+
 @api_login_required
 @require_http_methods(["GET", "POST"])
 def memories(request):
     if request.method == "POST":
-        body = json_body(request)
         try:
-            out = store.save_memory(request.user, body.get("content", ""), body.get("kind", "note"),
-                                    body.get("importance", 3))
-        except Exception as exc:  # noqa: BLE001  (UserFacingError)
+            out = _add_memory(request.user, json_body(request))
+        except UserFacingError as exc:
             return error(str(exc))
         return JsonResponse(out)
-    items = Memory.objects.filter(user=request.user)[:100]
-    return JsonResponse({"memories": [
-        {"id": m.pk, "kind": m.kind, "content": m.content, "importance": m.importance, "uses": m.uses}
-        for m in items]})
+    return JsonResponse(_knowledge_snapshot(request.user))
+
+
+@api_login_required
+@require_POST
+def memories_upload(request):
+    """Envia arquivos para a pasta memoria/ do workspace e os indexa na memória de conhecimento."""
+    results, errors = [], []
+    for f in request.FILES.getlist("files")[:10]:
+        try:
+            saved = sandbox.save_upload(request.user, f, folder="memoria")
+            if sandbox.extension(saved["path"]) not in sandbox.READ_EXT:
+                raise UserFacingError("Formato salvo no workspace, mas não pode ser lido como texto (imagem?).")
+            text = sandbox.read_any(request.user, saved["path"])
+            results.append({**saved, **store.ingest(request.user, "file", saved["path"], saved["path"], text,
+                                                    min_chars=1)})
+        except UserFacingError as exc:
+            errors.append({"name": f.name, "error": str(exc)})
+    return JsonResponse({"saved": results, "errors": errors, **_knowledge_snapshot(request.user)})
 
 
 @api_login_required
 @require_http_methods(["DELETE"])
 def memory_detail(request, pk):
     return JsonResponse({"deleted": store.forget_memory(request.user, pk)})
+
+
+@api_login_required
+@require_http_methods(["DELETE"])
+def document_detail(request, pk):
+    return JsonResponse({"deleted": store.forget_document(request.user, pk)})

@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import tempfile
 
@@ -20,7 +21,8 @@ from apps.workspace import sandbox
 User = get_user_model()
 TMP = tempfile.mkdtemp(prefix="orbit_test_")
 ORBIT = {**settings.ORBIT, "LLM_PROVIDER": "mock", "SYNC_RUNS": True, "MAX_EDITS_PER_FILE_DAY": 3,
-         "MAX_WRITES_PER_RUN": 2, "WORKSPACE_QUOTA_MB": 1, "ENABLE_DESKTOP": False}
+         "MAX_WRITES_PER_RUN": 2, "WORKSPACE_QUOTA_MB": 1, "ENABLE_DESKTOP": False,
+         "VECTOR_STORE": "local", "EMBEDDING_BACKEND": "hash"}
 
 
 def tearDownModule():
@@ -31,6 +33,7 @@ def tearDownModule():
 class Base(TestCase):
     def setUp(self):
         cache.clear()
+        os.makedirs(TMP, exist_ok=True)  # outros módulos de teste reaproveitam esta base
         self._tmp = tempfile.mkdtemp(dir=TMP)  # workspace isolado por teste (os IDs de usuário se repetem)
         self._ms = self.settings(MEDIA_ROOT=self._tmp)
         self._ms.enable()
