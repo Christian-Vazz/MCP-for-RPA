@@ -1,0 +1,21 @@
+{% load static %}<!doctype html>
+<html lang="pt-br" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Orbit Agent{% endblock %}</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%2300d4f0'/%3E%3Cpath d='M16 6l2.6 7.4L26 16l-7.4 2.6L16 26l-2.6-7.4L6 16l7.4-2.6z' fill='%2300131a'/%3E%3C/svg%3E">
+<script>
+/* aplica o tema antes do primeiro paint (sem "flash") */
+(function(){var t=localStorage.getItem('orbit-theme')||'{{ user_theme|default:"dark" }}';
+if(t==='system')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
+document.documentElement.dataset.theme=t;})();
+</script>
+<link rel="stylesheet" href="{% static 'css/orbit.css' %}">
+</head>
+<body>
+{% block body %}{% endblock %}
+<script src="{% static 'js/common.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

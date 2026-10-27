@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Entrar · Orbit Agent{% endblock %}
+{% block body %}
+<div class="auth-theme"><button class="icon-btn" data-theme-toggle type="button" aria-label="Alternar tema claro/escuro" title="Alternar tema"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg></button></div>
+<main class="auth"><div class="auth-box">
+  <div class="brand"><div class="logo"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg></div><div><b>Orbit Agent</b><span>Seu workspace inteligente</span></div></div>
+  <form class="card" method="post" novalidate>
+    {% csrf_token %}
+    <h1>Bem-vindo de volta</h1>
+    <p class="sub">Entre para continuar no seu workspace.</p>
+    {% if locked %}<div class="alert">Muitas tentativas. Tente novamente em 15 minutos.</div>{% endif %}
+    {% if form.non_field_errors %}<div class="alert">{{ form.non_field_errors.0 }}</div>{% endif %}
+    <div class="field"><label for="{{ form.username.id_for_label }}">E-mail</label>{{ form.username }}
+      {% for e in form.username.errors %}<ul class="errors"><li>{{ e }}</li></ul>{% endfor %}</div>
+    <div class="field"><label for="{{ form.password.id_for_label }}">Senha</label>{{ form.password }}</div>
+    <button class="btn-accent" type="submit">Entrar</button>
+    <a class="auth-link" href="{% url 'register' %}">Ainda não tenho uma conta</a>
+  </form>
+</div></main>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Dashboard de uso · Orbit Agent{% endblock %}
+{% block body %}
+<main class="dash">
+  <header class="dash-head">
+    <div><small>ORBIT AGENT</small><h1>Dashboard de uso</h1></div>
+    <div class="dash-actions">
+      <span class="muted" id="provider" style="font-size:12.5px"></span>
+      <a class="btn" href="{% url 'chat' %}">Voltar ao agente</a>
+      <button class="icon-btn" data-theme-toggle type="button" aria-label="Alternar tema claro/escuro" title="Alternar tema"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg></button>
+      <form method="post" action="{% url 'logout' %}" style="margin:0">{% csrf_token %}<button class="btn solid" type="submit">Sair</button></form>
+    </div>
+  </header>
+
+  <section class="grid g3" aria-label="Resumo de hoje">
+    <div class="panel-card kpi"><small>Solicitações hoje</small><strong id="k-req">–</strong></div>
+    <div class="panel-card kpi"><small>Tokens estimados</small><strong id="k-tok">–</strong><em id="k-tok-sub"></em></div>
+    <div class="panel-card kpi"><small>Ações executadas</small><strong id="k-act">–</strong><em id="k-act-sub"></em></div>
+  </section>
+
+  <section class="panel-card" style="margin-bottom:16px">
+    <div class="row-between"><b style="font-size:14px">Limite diário</b><span class="muted" id="limit-pct"></span></div>
+    <div class="bar" id="limit-bar" style="margin:14px 0 12px"><i style="width:0"></i></div>
+    <p class="muted" style="margin:0;font-size:12px">O limite é reiniciado diariamente à meia-noite. Respostas em cache contam como solicitação, mas não consomem tokens do modelo.</p>
+  </section>
+
+  <section class="grid g4" aria-label="Desempenho">
+    <div class="panel-card kpi sm"><small>Respostas vindas do cache</small><strong id="k-cache">–</strong><em>do total de solicitações</em></div>
+    <div class="panel-card kpi sm"><small>Tokens economizados</small><strong id="k-saved">–</strong><em>cache de resposta + prompt caching</em></div>
+    <div class="panel-card kpi sm"><small>Tempo médio de resposta</small><strong id="k-lat">–</strong><em>execuções com o modelo</em></div>
+    <div class="panel-card kpi sm"><small>Taxa de erro</small><strong id="k-err">–</strong><em id="k-fb"></em></div>
+  </section>
+
+  <section class="panel-card" style="margin-bottom:16px">
+    <div class="row-between"><div><h3>Atividade dos últimos 14 dias</h3><p class="hint" id="chart-hint"></p></div>
+      <div class="seg-toggle" role="group" aria-label="Métrica do gráfico"><button type="button" data-metric="runs" aria-pressed="true">Solicitações</button><button type="button" data-metric="tokens" aria-pressed="false">Tokens</button></div></div>
+    <div class="chart" id="chart" role="img" aria-label="Gráfico de barras de atividade diária"></div>
+  </section>
+
+  <section class="grid g2">
+    <div class="panel-card"><h3>Ferramentas mais usadas</h3><p class="hint">Pelo agente e pelo uso direto. Falhas em vermelho.</p><div class="rank" id="tools"></div></div>
+    <div class="panel-card"><h3>Workspace</h3><p class="hint">Arquivos e armazenamento do seu ambiente.</p>
+      <div class="bar" id="ws-bar"><i style="width:0"></i></div>
+      <dl class="stat-list"><dt>Arquivos</dt><dd id="ws-files">–</dd><dt>Armazenamento</dt><dd id="ws-bytes">–</dd><dt>Tipos mais comuns</dt><dd id="ws-ext">–</dd></dl></div>
+  </section>
+
+  <section class="grid g2">
+    <div class="panel-card"><h3>Armazenamento vetorial</h3><p class="hint">Base de conhecimento (RAG) e memória do agente.</p>
+      <dl class="stat-list"><dt>Fontes indexadas</dt><dd id="kb-docs">–</dd><dt>Trechos (vetores)</dt><dd id="kb-chunks">–</dd><dt>Memórias</dt><dd id="kb-mem">–</dd>
+        <dt>Dimensão / motor</dt><dd id="kb-dim">–</dd><dt>Tamanho dos vetores</dt><dd id="kb-bytes">–</dd><dt>Por origem</dt><dd id="kb-types">–</dd></dl></div>
+    <div class="panel-card"><h3>Privacidade e aprendizado</h3>
+      <p class="muted" id="learn-text" style="margin:8px 0 14px;font-size:13.5px"></p>
+      <label class="switch-row" style="padding:0"><input type="checkbox" id="learn-toggle"><span>Permitir que o agente aprenda com os sites e arquivos que eu uso, e guarde amostras das solicitações.</span></label>
+      <p class="hint" style="margin:12px 0 0">Seus dados ficam só na sua base. Amostras só entram em treinamento se você autorizar e avaliar a resposta com 👍.</p></div>
+  </section>
+
+  <section class="panel-card"><h3>Solicitações recentes</h3><p class="hint">As 8 últimas.</p>
+    <div class="scroll-x"><table class="t"><thead><tr><th>Quando</th><th>Pedido</th><th>Estado</th><th>Tokens</th><th>Passos</th><th>Tempo</th></tr></thead><tbody id="recent"></tbody></table></div>
+    <div class="empty hidden" id="recent-empty">Nenhuma solicitação ainda. Volte ao agente e faça um pedido.</div></section>
+</main>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/dashboard.js' %}"></script>{% endblock %}

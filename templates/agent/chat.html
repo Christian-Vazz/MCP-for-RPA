@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Orbit Agent{% endblock %}
+{% block body %}
+<div class="app" id="app">
+  <aside class="sidebar" aria-label="Navegação">
+    <div class="brand"><div class="logo"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg></div><div><b>Orbit Agent</b><span>Computer workspace</span></div></div>
+    <button class="btn-primary" id="new-chat" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova conversa</button>
+    <div class="section-label">AÇÕES RÁPIDAS</div>
+    <button class="nav-item" id="qa-files" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Explorar arquivos</button>
+    <button class="nav-item" id="qa-web" type="button"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg>Consultar web</button>
+    <div class="section-label">CONVERSAS</div>
+    <div class="conv-list" id="conv-list"></div>
+    <div class="side-foot">
+      <label class="switch-row"><input type="checkbox" id="auto-approve" {% if profile.auto_approve %}checked{% endif %}>
+        <span>Aprovar cliques e digitação no navegador automaticamente</span></label>
+      <div class="isolated"><b>Ambiente isolado</b>Ações limitadas ao workspace seguro</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn toggle-side" id="toggle-side" type="button" aria-label="Abrir menu"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="ttl"><b id="conv-title">Agente geral</b><span id="status">Pronto</span></div>
+      <a class="btn" href="{% url 'dashboard' %}">Uso</a>
+      <span class="who">{{ display_name }}</span>
+      <button class="icon-btn" data-theme-toggle type="button" aria-label="Alternar tema claro/escuro" title="Alternar tema"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg></button>
+      <button class="icon-btn toggle-panel" id="toggle-panel" type="button" aria-label="Abrir workspace"><svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></button>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn solid" type="submit">Sair</button></form>
+    </header>
+    <section id="messages" aria-live="polite" aria-label="Conversa"></section>
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea id="prompt" rows="1" maxlength="4000" placeholder="Peça para pesquisar, criar, ler ou editar arquivos…" aria-label="Mensagem"></textarea>
+        <button class="send" id="send" type="button" aria-label="Enviar"><svg class="i" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+      </div>
+      <div class="disclaimer">O agente pode cometer erros. Revise alterações importantes.</div>
+    </div>
+  </main>
+
+  <aside class="panel" aria-label="Workspace">
+    <div class="panel-head"><b>Workspace</b><span class="badge" id="file-count">0 arquivos</span></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="files">Arquivos</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="tools">Ferramentas</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="memory">Memória</button>
+    </div>
+
+    <div class="pane" id="pane-files">
+      <div class="dropzone" id="dropzone"><div id="drop-text">Nenhum arquivo ainda.<br>Peça ao agente para criar um ou arraste arquivos aqui.</div>
+        <button class="btn" id="upload-btn" type="button" style="margin-top:12px">Enviar arquivos</button>
+        <input type="file" id="upload-input" multiple class="sr" aria-label="Enviar arquivos"></div>
+      <div id="file-list" style="margin-top:12px"></div>
+      <div class="quota"><div class="bar" id="quota-bar"><i style="width:0"></i></div><small id="quota-text"></small></div>
+      <div class="resources"><h4>RECURSOS</h4><ul>
+        <li>Leitura e escrita</li><li>Consulta web HTTPS</li><li>Navegador (Selenium)</li><li>Memória e base de conhecimento</li><li>Cache inteligente</li></ul></div>
+    </div>
+
+    <div class="pane hidden" id="pane-tools">
+      <p class="muted" style="margin:0 0 12px;font-size:12.5px">Execute qualquer ferramenta diretamente, sem passar pelo modelo.</p>
+      <div class="form-row"><label for="tool-select">Ferramenta</label><select class="sel" id="tool-select"></select></div>
+      <div class="tool-desc" id="tool-desc"></div>
+      <div id="tool-form"></div>
+      <button class="btn solid" id="tool-run" type="button">Executar</button>
+      <pre class="out hidden" id="tool-out"></pre>
+    </div>
+
+    <div class="pane hidden" id="pane-memory">
+      <p class="muted" style="margin:0 0 12px;font-size:12.5px">O que o agente lembra sobre você entre conversas.</p>
+      <div class="inline"><div class="form-row" style="flex:1;margin:0"><input type="text" id="mem-input" maxlength="500" placeholder="Adicionar uma memória…" aria-label="Nova memória"></div>
+        <button class="btn solid" id="mem-add" type="button">Salvar</button></div>
+      <div id="mem-list" style="margin-top:10px"></div>
+    </div>
+  </aside>
+</div>
+
+<dialog id="file-dialog">
+  <div class="dlg-head"><b id="dlg-title"></b><button class="icon-btn" id="dlg-close" type="button" aria-label="Fechar"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-body"><pre id="dlg-text"></pre></div>
+  <div class="dlg-foot">
+    <a class="btn" id="dlg-download" href="#">Baixar</a>
+    <button class="btn" id="dlg-use" type="button">Pedir ao agente</button>
+    <button class="btn" id="dlg-undo" type="button">Desfazer última edição</button>
+    <button class="btn" id="dlg-delete" type="button" style="margin-left:auto;color:var(--bad)">Excluir</button>
+  </div>
+</dialog>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/chat.js' %}"></script>{% endblock %}
